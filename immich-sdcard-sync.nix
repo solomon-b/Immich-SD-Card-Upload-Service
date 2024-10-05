@@ -2,19 +2,24 @@
 
 let
   # The script path we want to run
-  sdcardScript = pkgs.writeScriptBin "sdcard-upload"
-    (builtins.readFile ./immich-sdcard-upload.sh).overrideAttrs
-    (oldAttrs: rec {
-      buildCommand = ''
-        mkdir -p $out/bin
-        cp ${./immich-sdcard-upload.sh} $out/bin/sdcard-upload
-        patchShebangs $out/bin/sdcard-upload
-      '';
-    });
+  immich-sdcard-sync-bin =
+    let
+      src = builtins.readFile ./immich-sdcard-sync.sh;
+      script = (pkgs.writeScriptBin "immich-sdcard-sync" src).overrideAttrs
+        (old: {
+          buildCommand = "${old.buildCommand}\n patchShebangs $out";
+        });
+    in 
+    pkgs.symlinkJoin {
+      name = "immich-sdcard-sync";
+      paths = [ pkgs.jq pkgs.curl pkgs.util-linux pkgs.rsync script ];
+      buildInputs = [ pkgs.makeWrapper ];
+      postBuild = "wrapProgram $out/bin/immich-sdcard-sync --prefix PATH : $out/bin";
+    };
 in
 {
   options = {
-    sdcard-upload = {
+    immich-sdcard-sync = {
       enable = lib.mkOption {
         type = lib.types.bool;
         default = false;
@@ -47,32 +52,30 @@ in
     };
   };
 
-  config = lib.mkIf config.sdcard-upload.enable {
+  config = lib.mkIf config.immich-sdcard-sync.enable {
     # Environment file with dynamic variables
-    environment.etc."sdcard-upload.env".text = ''
-      IMMICH_SERVER_URL_FILE=${config.sdcard-upload.immichServerUrlFile}
-      IMMICH_USERNAME_FILE=${config.sdcard-upload.immichUsernameFile}
-      IMMICH_PASSWORD_FILE=${config.sdcard-upload.immichPasswordFile}
-      SD_CARD_SERIALS="${config.sdcard-upload.sdCardSerials}"
+    environment.etc."immich-sdcard-sync.env".text = ''
+      IMMICH_SERVER_URL_FILE=${config.immich-sdcard-sync.immichServerUrlFile}
+      IMMICH_USERNAME_FILE=${config.immich-sdcard-sync.immichUsernameFile}
+      IMMICH_PASSWORD_FILE=${config.immich-sdcard-sync.immichPasswordFile}
+      SD_CARD_SERIALS="${config.immich-sdcard-sync.sdCardSerials}"
     '';
 
     # Systemd service definition
-    systemd.services.sdcard-upload = {
+    systemd.services.immich-sdcard-sync = {
       description = "SD Card Upload Service";
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = "${sdcardScript}/bin/sdcard-upload";
-        EnvironmentFile = "/etc/sdcard-upload.env";
+        ExecStart = "${immich-sdcard-sync-bin}/bin/immich-sdcard-sync";
+        EnvironmentFile = "/etc/immich-sdcard-sync.env";
       };
-      user = "sdcard-upload-user";
-      group = "sdcard-upload-user";
     };
 
     # udev rule for triggering the systemd service
     services.udev.extraRules = ''
-      ACTION=="add", SUBSYSTEMS=="usb", KERNEL=="sd[a-z]", ENV{ID_SERIAL}=="?*", ENV{ID_BUS}=="usb", ENV{ID_TYPE}=="disk", RUN+="/run/current-system/sw/bin/systemctl start sdcard-upload.service"
+      ACTION=="add", SUBSYSTEMS=="usb", KERNEL=="sd[a-z]", ENV{ID_SERIAL}=="?*", ENV{ID_BUS}=="usb", ENV{ID_TYPE}=="disk", RUN+="${pkgs.systemd.out}/bin/systemctl start immich-sdcard-sync.service"
     '';
   };
 }

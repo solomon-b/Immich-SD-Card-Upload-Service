@@ -10,7 +10,7 @@
     pkgs = nixpkgs.legacyPackages.${system};
   in {
     # Expose the NixOS module in the flake output
-    nixosModules.immichSdCardSync = { config, lib, ... }: import ./immich-sd-card-sync.nix { inherit lib pkgs config; };
+    nixosModules.immichSdCardSync = { config, lib, ... }: import ./immich-sdcard-sync.nix { inherit lib pkgs config; };
 
     # Add a formatter using nixpkgs-fmt
     formatter = pkgs.nixpkgs-fmt;
