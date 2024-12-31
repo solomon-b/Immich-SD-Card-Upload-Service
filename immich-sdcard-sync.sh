@@ -97,7 +97,7 @@ upload_images_to_immich() {
     find "$TEMP_FOLDER" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \
         -o -iname "*.gif" -o -iname "*.bmp" -o -iname "*.tiff" -o -iname "*.heic" \
         -o -iname "*.heif" -o -iname "*.raw" -o -iname "*.cr2" -o -iname "*.nef" \
-        -o -iname "*.dng" \) | while read -r IMAGE_FILE; do
+        -o -iname "*.dng" -o -iname "*.mov" \) | while read -r IMAGE_FILE; do
         echo "Uploading $IMAGE_FILE..."
 
         # Extract DEVICE_ID from the file path
@@ -160,7 +160,7 @@ main() {
     # List of image file extensions (case-insensitive)
     IMAGE_EXTENSIONS=(
         "jpg" "jpeg" "png" "gif" "bmp" "tiff" "heic" "heif"
-        "raw" "cr2" "nef" "dng"
+        "raw" "cr2" "nef" "dng" "mov"
     )
 
     # Temporary folder to copy images to
